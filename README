@@ -9,3 +9,7 @@ For now, you can enable it by adding this to defaultServices.jsm - you'll need t
 	    "sidebarURL": "http://demosocialservice.org:8888/sidebar.htm",
 	    "URLPrefix": "http://demosocialservice.org:8888"
 	}
+
+Run the server with:
+
+	NODE_ENV=development node server.js 8888
