@@ -1,0 +1,46 @@
+<html>
+<head>
+	<title>BrowseWithMe</title>
+</head>
+<link rel="manifest" type="text/json" href="manifest.json"></link>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script src="https://browserid.org/include.js" type="text/javascript"></script>
+<script>
+function signin() {
+	navigator.id.get(function(assertion) {
+		try {
+			navigator.mozSocial.getWorker().port.post({cmd:"connect", assertion:assertion});
+			createSocket(assertion);
+		} catch (e) {
+			console.log("Error creating socket: " + e);
+		}
+	})
+}
+
+navigator.mozSocial.getWorker().port.onmessage = function(e) {
+	let topic = e.data.topic;
+	let data = e.data.data;
+	if (messageHandlers[topic])
+		messageHandlers[topic](data);
+};
+
+messageHandlers = {
+
+
+};
+
+</script>
+<body>
+
+<div id="signin">
+	<a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_red.png"></a>
+	<div id="signin_error"></div>
+</div>
+
+<div id="activity" style="display:none">
+	Activity goes here!
+</div>
+
+
+</body>
+</html>

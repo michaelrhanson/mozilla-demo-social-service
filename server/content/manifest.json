@@ -1,0 +1,7 @@
+ {
+    "name": "BrowseWithMe",
+    "iconURL": "http://browsewithme.org:8888/icon.png",
+    "workerURL": "http://browsewithme.org:8888/worker.js",
+    "sidebarURL": "http://browsewithme.org:8888/sidebar.htm",
+    "URLPrefix": "http://browsewithme.org:8888"
+  }

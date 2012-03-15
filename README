@@ -1,0 +1,11 @@
+This is a demo service that works with the Firefox Social API.
+
+For now, you can enable it by adding this to defaultServices.jsm - you'll need to run it locally and modify /etc/hosts with whatever hostname you choose.  And of course it's not very social if you're running it on localhost.
+
+	{
+	    "name": "DemoSocialService",
+	    "iconURL": "http://demosocialservice.org:8888/icon.png",
+	    "workerURL": "http://demosocialservice.org:8888/worker.js",
+	    "sidebarURL": "http://demosocialservice.org:8888/sidebar.htm",
+	    "URLPrefix": "http://demosocialservice.org:8888"
+	}
