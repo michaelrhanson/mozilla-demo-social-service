@@ -75,33 +75,40 @@ gTopicTable = {};
 
 // NOTE This implementation assumes only one socket per user!
 // Fixing that will require some more sophisticated indexing.
-function addSession(email, expires, socket) {
-	var obj = gSessionTable[email];
+function addSession(id, expires, socket) {
+	var obj = gSessionTable[id];
 	if (!obj) {
-		obj = gSessionTable[email] = {};
+		obj = gSessionTable[id] = {};
 	}
-	obj = expires;
-	obj = socket;
-	socket.email = email;
-	log("Update session table: " + email + " at " + socket.remoteAddress);
+	obj.expires = expires;
+	obj.socket = socket;
+	socket.userid = id;
+	log("Update session table: " + id + " at " + socket.remoteAddress);
 }
 
 function clearSession(socket) {
-	if (socket.email && gSessionTable[socket.email]) {
-		log("Update session table: remove " + socket.email + " at " + socket.remoteAddress);
-		delete gSessionTable[socket.email];
+	if (socket.id && gSessionTable[socket.userid]) {
+		log("Update session table: remove " + socket.userid + " at " + socket.remoteAddress);
+		delete gSessionTable[socket.userid];
 	}
+}
+
+function getSession(id) {
+	return gSessionTable[id];
 }
 
 function getOnlineFriends(id) {
 	var ret = [];
 	for (k in gSessionTable) {
-		ret.push( { id: k, icon: makeIcon(k)} )
+		ret.push( { id: k, icon: makeIcon(k), presence: "on"} )
 	}
 	return ret;
 }
 
 function makeIcon(id) {
+	if (!id) {
+		return SERVER_DOMAIN + "/generic_person.png";
+	}
 	var icon = 'http://www.gravatar.com/avatar/' + 
 			crypto.createHash('md5').update(id.toLowerCase().trim()).digest('hex') +
 			"?s=32";
@@ -109,9 +116,13 @@ function makeIcon(id) {
 }
 function createSessionAgent(clientConnection)
 {
+	var session = {};
 	clientConnection.on('message', function(message) {
+		log("Got message");
 		try {
+
 			if (message.type === 'utf8') {
+				log("Got request: " + message.utf8Data);
 				var cmd = JSON.parse(message.utf8Data);
 				if (cmd.cmd == "connect") {
 					var body = "assertion=" + cmd.assertion + "&audience=" + SERVER_DOMAIN;
@@ -130,6 +141,8 @@ function createSessionAgent(clientConnection)
 							var result = JSON.parse(d);
 							if (result.status == "okay") {
 								addSession(result.email, result.expires, clientConnection);
+								session.id = result.email;
+								session.idExpires = result.expires;
 
 								var icon = makeIcon(result.email);
 								clientConnection.sendUTF(JSON.stringify(
@@ -139,10 +152,6 @@ function createSessionAgent(clientConnection)
 										id:result.email,
 										icon:icon
 									}
-								));
-
-								clientConnection.sendUTF(JSON.stringify(
-									getOnlineFriends(result.email)
 								));
 							} else {
 								log("login failure: " + d);
@@ -162,10 +171,39 @@ function createSessionAgent(clientConnection)
 						console.error(e);
 					});                
 
+				} else if (cmd.cmd == "getfriends") {
+					var friends = getOnlineFriends(session.id);
+					var cmd = {
+							cmd: "getfriendsresp",
+							friends: friends
+					};
+					var cmdStr = JSON.stringify(cmd);
+					log("sending friend list: " + cmdStr);
+					clientConnection.sendUTF(cmdStr);
+				} else if (cmd.cmd == "sendmessage") {
+
+					log("Got sendMessage; sessionID is " + session.id);
+
+					var toSession = getSession(cmd.to);
+					if (toSession) {
+						toSession.socket.sendUTF(JSON.stringify( {
+							cmd: "newmessage",
+							from: session.id,
+							fromIcon: makeIcon(session.id),
+							to: cmd.to,
+							msg: cmd.msg,
+							time: new Date().getTime()
+						}))
+					} // else queue it up
+					else {
+						log("Message received for " + cmd.to + "; not online, should queue it");
+					}
 				} else if (cmd.cmd == "subscribe") {
 
 				} else if (cmd.cmd == "publish") {
 
+				} else {
+					log("Unknown command: " + message.utf8Data);
 				}
 			}
 		} catch (e) {

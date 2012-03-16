@@ -1,0 +1,172 @@
+<html>
+<head>
+	<title>BrowseWithMe</title>
+</head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<style>
+BODY {
+	background-color:white;
+	height:100%;
+	overflow:hidden;
+}
+#messages {
+	height:100%;
+	padding-bottom:36px;
+	background-color:white;
+}
+#chatfocusline {
+	font-family:"Lucida Sans",Tahoma,sans-serif;
+	font-size:10px;
+}
+#chatfocus {
+	display:inline-block;
+	font-weight:bold;
+}
+#inputarea {
+	position:absolute;
+	bottom:0px;
+	height:40px;
+	width:100%;
+}
+#inputarea input {
+	width:95%;
+}
+.msg {
+	height:36px;
+	overflow:hidden;
+	font-family:"Lucida Sans",Tahoma,sans-serif;
+	font-size:10px;
+	position:relative;
+}
+.msg .iconbox {
+	position:absolute;
+	left:2px;
+	top:2px;
+}
+.msg .icon {
+	width:32px;
+	height:32px;
+}
+.msg .from {
+	font-weight:bold;
+}
+.msg .text {
+	width:100%;
+	padding-left:36px;
+	position:absolute;
+	top:0px;
+	left:0px;
+	height:36px;
+}
+
+</style>
+<script>
+$(document).ready(function() {
+	navigator.mozSocial.getWorker().port.onmessage = function(e) {
+		var topic = e.data.topic;
+		var data = e.data.data;
+		if (messageHandlers[topic])
+			messageHandlers[topic](data);
+	};
+	navigator.mozSocial.getWorker().port.postMessage({topic:"checkconnection"});
+
+	$('#inputtext').keypress(function(e){
+		if(e.which == 13){
+			navigator.mozSocial.getWorker().port.postMessage(
+				{
+					topic:"sendmessage",
+					msg: $("#inputtext").val(),
+					to: gFocusedUser
+				}
+			);
+			e.preventDefault();
+			$("#inputtext").val("");
+			return false;
+       	}
+     });
+});
+
+messageHandlers = {
+	checkconnectionack: function(msg) {
+		userIsConnected(msg);
+	},
+	getfriendsresp: function(msg) {
+	},
+	presenceupdate: function(msg) {
+		//updatePresence(msg);
+	},
+	newmessage: function(msg) {
+		handleMessage(msg);
+	},
+	connectionclose: function(msg) {
+		// userIsDisconnected(msg);
+		window.close();
+	},
+	startchat: function(msg) {
+		setChatFocus(msg.to);
+	}
+};
+
+
+var gMessageLists = {};
+var gFocusedUser;
+
+function userIsConnected(msg) {
+
+}
+
+function setChatFocus(toID) {
+	gFocusedUser = toID;
+	$("#chatfocus").text(toID);
+}
+function handleMessage(msg) {
+//	$("#debug").text("Got message: " + JSON.stringify(msg));
+	var list = gMessageLists[msg.from];
+	if (!list) {
+		list = gMessageLists[msg.from] = [];
+	}
+	list.push(msg);
+	if (gFocusedUser == msg.from) {
+		var newMsg = renderMessage(msg);
+		//newMsg.hide();
+		$("#messages").append(newMsg);
+		//newMsg.show(500);		
+	} else {
+		console.log("Not focused user; ignoring for the moment");
+	}
+}
+function renderMessage(msg) {
+	var div = $("<div class='msg'>");
+
+	var iconbox = $("<div class='iconbox'>");
+	var icon = $("<img class='icon'>");
+	var text = $("<div class='text'>");
+	var from = $("<div class='from'>");
+	var msgtext = $("<div class='msg'>");
+	
+	iconbox.append(icon);
+	div.append(icon);
+	div.append(text);
+
+	text.append(from);
+	text.append(msgtext);
+
+	icon.attr("src", msg.fromIcon);
+	from.text(msg.from);
+	msgtext.text(msg.msg);
+
+	// not using date
+	return div;
+
+}
+</script>
+<body>
+<div id="messages">
+	<div id="debug"></div>
+</div>
+<div id="inputarea">
+	<div id="chatfocusline">Chatting with <div id="chatfocus"></div></div>
+	<input type="text" id="inputtext">
+</div>
+</body>
+</html>

@@ -44,7 +44,7 @@ ondisconnect = function(e) {
 	log("removed receiver " + index);
 	_broadcastReceivers.splice(index, 1);
   }
-  log("fbworker ondisconnect - now " + _broadcastReceivers.length + " connections.");
+  log("bwmworker ondisconnect - now " + _broadcastReceivers.length + " connections.");
 }
 
 
@@ -91,6 +91,10 @@ var handlers = {
 		var assertion = data.assertion;
 		createSocket(assertion);
 	},
+	getfriends: function(port, data) {
+		// if we have the friend list cached, return that
+		gSocket.send(JSON.stringify( {cmd: "getfriends"}));
+	},
 	shownotification: function(port, data) {
 		Notification(data.icon, data.title, data.text).show();
 	},
@@ -109,6 +113,16 @@ var handlers = {
 	},
 	heartbeat: function(port, data) {
 		heartbeat();
+	},
+	sendmessage: function(port, data) {
+		gSocket.send(JSON.stringify( 
+			{
+				cmd: "sendmessage", 
+				from: gSavedUserProfile.id,
+				to: data.to,
+				msg: data.msg
+			}
+		));
 	}
 }
 
@@ -121,13 +135,14 @@ var gSavedUserProfile;
 function createSocket(assertion)
 {
 	log("Creating socket");
-	var socket = new WebSocket("ws://localhost:8888/websocket");
+	var socket = new WebSocket("ws://browsewithme.org:8888/websocket");
 	socket.onopen = function() {
 		log("Socket open, sending assertion");
 		socket.send( JSON.stringify( {cmd: "connect", assertion:assertion} ));
 	}
 	socket.onclose = function() {
 		log("Socket close");
+		broadcast("connectionclose");
 		gSocket = null;
 	}
 	socket.onmessage = function(msg) {
@@ -148,14 +163,22 @@ function createSocket(assertion)
 socketMessageHandlers = {
 	connack: function(msg) {
 		gSavedUserProfile = msg;
-		broadcast("connack", msg);		
+		broadcast("connack", msg);
+
+		// get a list of my friends:
+		if (msg.status == "ok") {
+			gSocket.send(JSON.stringify( {cmd: "getfriends"}));
+		}
+	},
+	getfriendsresp: function(msg) {
+		broadcast("getfriendsresp", msg);
 	},
 	presenceupdate: function(msg) {
 		broadcast("presenceupdate", msg);
 	},
 	newmessage: function(msg) {
 		broadcast("newmessage", msg);
-	}
+	},
 }
 
 function heartbeat() {
