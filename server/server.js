@@ -93,6 +93,17 @@ function clearSession(socket) {
 	}
 }
 
+function broadcastToAllConnections(msg)
+{
+	for (var s in gSessionTable) {
+		try {
+			gSessionTable[s].socket.send(msg);
+		} catch (e) {
+			log("Error while broadcasting to " + s.socket.userid);
+		}
+	}
+}
+
 function getSession(id) {
 	return gSessionTable[id];
 }
@@ -114,6 +125,8 @@ function makeIcon(id) {
 			"?s=32";
 	return icon;
 }
+
+
 function createSessionAgent(clientConnection)
 {
 	var session = {};
@@ -152,6 +165,14 @@ function createSessionAgent(clientConnection)
 										id:result.email,
 										icon:icon
 									}
+								));
+								// and tell everybody that you just came on
+								broadcastToAllConnections(JSON.stringify(
+										{cmd:"presenceupdate",
+										id:result.email,
+										icon:icon,
+										presence:"on"
+										}
 								));
 							} else {
 								log("login failure: " + d);
@@ -225,6 +246,16 @@ function createSessionAgent(clientConnection)
 		try {
 			log('Peer ' + clientConnection.remoteAddress + ' disconnected');
 			clearSession(clientConnection);
+
+			// and tell everybody that you just left
+			broadcastToAllConnections(JSON.stringify(
+				{
+					cmd:"presenceupdate",
+					id:session.id,
+					presence:"off"
+				}
+			));
+
 		} catch (e) {
 			log("Error in clientConnection.close: " + e);
 		}
