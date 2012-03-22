@@ -188,23 +188,19 @@ function renderFriendList()
 	$("#friendlistbox").append(list);
 }
 
-var gPresence = {};
 function updatePresence(msg)
 {
-	var id = msg.id;
-	var status = msg.status;
-	if (gPresence[id]) {
-		if (status == "off") {
-			delete gPresence[id];
-		} else {
-			gPresence[id].status = status;
+	for each (var f in gFriendsList) {
+		if (f.id == msg.id) {
+			f.presence = msg.presence;
+			renderFriendList();
 		}
-	} else {
-		gPresence[id] = {
-			icon: msg.icon,
-			status: status
-		}
-	}
+	}	
+	gFriendsList.push( {
+		id:msg.id,
+		presence:msg.presence,
+		icon:msg.icon
+	});
 }
 
 
