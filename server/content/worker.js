@@ -123,6 +123,16 @@ var handlers = {
 				msg: data.msg
 			}
 		));
+	},
+	video: function(port, data) {
+		gSocket.send(JSON.stringify(
+			{
+				cmd: "video",
+				from: gSavedUserProfile.id,
+				to: data.to,
+				msg: data.msg
+			}
+		));
 	}
 }
 
@@ -135,7 +145,7 @@ var gSavedUserProfile;
 function createSocket(assertion)
 {
 	log("Creating socket");
-	var socket = new WebSocket("ws://browsewithme.org:8888/websocket");
+	var socket = new WebSocket("ws://demosocialservice.org:8888/websocket");
 	socket.onopen = function() {
 		log("Socket open, sending assertion");
 		socket.send( JSON.stringify( {cmd: "connect", assertion:assertion} ));
@@ -179,6 +189,9 @@ socketMessageHandlers = {
 	newmessage: function(msg) {
 		broadcast("newmessage", msg);
 	},
+	video: function(msg) {
+		broadcast("video", msg);
+	}
 }
 
 function heartbeat() {

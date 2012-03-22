@@ -18,7 +18,7 @@ for (var i = 2; i <= 2; i++) {
 	}
 }
 var port = Number(argv[2]);
-const SERVER_DOMAIN = "http://browsewithme.org:" + port;
+const SERVER_DOMAIN = "http://demosocialservice.org:" + port;
 
 server.configure('development', function(){
 	server.use(express.static(__dirname + '/content'));
@@ -202,6 +202,16 @@ function createSessionAgent(clientConnection)
 
 				} else if (cmd.cmd == "publish") {
 
+				} else if (cmd.cmd == "video") {
+					var toSession = getSession(cmd.to);
+					if (toSession) {
+						toSession.socket.sendUTF(JSON.stringify({
+							cmd: "video",
+							from: session.id,
+							to: cmd.to,
+							msg: cmd.msg
+						}));
+					}
 				} else {
 					log("Unknown command: " + message.utf8Data);
 				}

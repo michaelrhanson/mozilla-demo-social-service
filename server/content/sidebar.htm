@@ -153,27 +153,46 @@ function renderFriendList()
 		var presencebox = $("<div class='presencebox'>");
 		var presence = $("<img class='presence'>");
 		
+		var videoicon = $("<img class'icon'>");
+		videoicon.attr("src", "/video.png");
+
 		iconbox.append(icon);
 		div.append(iconbox);
 		icon.attr("src", f.icon);
 		div.append(name);
 		div.append(presencebox);
 		presencebox.append(presence);
+		presencebox.append(videoicon)
 		name.text(f.id);
 		
 		if (f.presence && PRESENCE_ICONS[f.presence]) {
 			presence.attr("src", PRESENCE_ICONS[f.presence]);
 		} else presencebox.hide();
 
-		div.click(function() {
-			navigator.mozSocial.openServiceWindow("http://browsewithme.org:8888/chat.htm", "mozsocialdemo-chat", 
+		icon.click(function() {
+			navigator.mozSocial.openServiceWindow(
+					"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
 					"resizable=yes,scrollbars=yes,width=400,height=300", 
 			 		"MozSocialDemo Chat", function() {
 			 			navigator.mozSocial.getWorker().port.postMessage(
 			 				{topic:"inform", type: "startchat", message: { to:f.id } }
-			 			)
-			 		});
+			 			);
+			 		}
+			 );
 		});
+
+		videoicon.click(function() {
+			navigator.mozSocial.openServiceWindow(
+					"http://demosocialservice.org:8888/video.htm", "mozsocialdemo-video",
+					"resizable=yes,scrollbars=yes,width=1350,height=700",
+					"MozSocialDemo Video", function() {
+						navigator.mozSocial.getWorker().port.postMessage(
+							{topic:"inform", type:"startvideo", message: { to:f.id } }
+						);
+					}
+			);
+		});
+
 		return div;
 	}
 
