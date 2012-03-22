@@ -1,0 +1,107 @@
+<html>
+<head>
+	<title>Video Chat</title>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <style>
+    #remote {
+      float: left;
+      border: 2px solid;
+      margin-bottom: 50px;
+    }
+    #local {
+      float: right;
+      border: 2px solid;
+      margin-bottom: 50px;
+    }
+    #debug {
+      display: block;
+      overflow: auto;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #call {
+      visibility: hidden;
+    }
+    a {
+      display: block;
+      font-size: 30px;
+      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+
+  <script>
+  var webrtc;
+  var gToUser;
+  var local;
+  var remote;
+
+  function dial() {
+    webrtc.startCall(local, remote);
+  };
+
+  $(document).ready(function() {
+    navigator.mozSocial.getWorker().port.onmessage = function(e) {
+      var topic = e.data.topic;
+      var data = e.data.data;
+
+      if (topic == "video") {
+        // handle incoming request
+        log("Received message from remote server");
+        log(JSON.stringify(data));
+        webrtc.processMessage(data.msg);
+      } else if (topic == "startvideo") {
+        gToUser = data.to;
+      }
+    };
+
+    function log(msg) {
+      var d = document.createElement("div");
+      d.innerHTML = msg;
+      $("#debug").append(d);
+    };
+
+    function internal_poll() {
+      signal = webrtc.messagePoll();
+      if (signal !== "") {
+        log("Received message from webrtc subsystem");
+        var pkt = {
+          topic: "video",
+          to: gToUser,
+          msg: signal
+        };
+        log("Sending: " + JSON.stringify(pkt));
+        navigator.mozSocial.getWorker().port.postMessage(pkt);
+      }
+      setTimeout(internal_poll, 2000);
+    };
+
+    local = document.getElementById("local").getContext("2d");
+    remote = document.getElementById("remote").getContext("2d");
+    var config = {stun: 'stun.l.google.com:19302'};
+
+    webrtc = navigator.getWebrtcContext(JSON.stringify(config), function(msg, arg) {
+      switch (msg) {
+      case "RINGING":
+        var answer = confirm("Incoming call! Accept?");
+        if (answer) webrtc.accept(local, remote);
+        else webrtc.hangup();
+        break;
+      }
+    });
+
+    internal_poll();
+    document.getElementById("call").style.visibility = "visible";
+  });
+  </script>
+</head>
+<body>
+<div><canvas id="remote" width="640" height="480"/></div>
+<div><canvas id="local" width="640" height="480"/></div>
+<a id="call" href="#" onclick="dial();">Start Call!</a>
+
+<div id="debug"></div>
+
+</body>
+</html>
