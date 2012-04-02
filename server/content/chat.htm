@@ -7,39 +7,70 @@
 BODY {
 	background-color:white;
 	height:100%;
-	overflow:hidden;
+	overflow-y:hidden;
+	overflow-x:hidden;
+	padding:0px;
+	margin:0px;
 }
-#messages {
-	height:100%;
-	padding-bottom:36px;
+#focuslist {
+	position:fixed;
+	border-bottom:1px solid #888;
 	background-color:white;
+	width:100%;
+	padding:4px;
+	z-index:2;
+	height:20px;
+	box-shadow:1px 1px 4px rgba(0,0,0,0.2);
 }
-#chatfocusline {
-	font-family:"Lucida Sans",Tahoma,sans-serif;
-	font-size:10px;
-}
-#chatfocus {
+.focus {
 	display:inline-block;
-	font-weight:bold;
+	background-color:#f0f0f0;
+	border:1px solid #888;
+	border-radius:4px;
+	padding:2px;
+	font-size:10px;
+	font-family:"Lucida Sans",Tahoma,sans-serif;
+}
+.activefocus {
+	background-color:#e0e0e0 !important;
+}
+
+#messages {
+	width:100%;
+	/*padding-top:30px;
+	padding-bottom:48px;*/
+	background-color:#f8f8f8;
+	overflow-y:auto;
+	position:absolute;
+	top:30px;
+	bottom:32px;
 }
 #inputarea {
-	position:absolute;
+	position:fixed;
 	bottom:0px;
-	height:40px;
+	padding:4px;
+	height:20px;
 	width:100%;
+	z-index:2;
+	background-color:white;
+	border-top:1px solid #888;
+	box-shadow:1px -1px 4px rgba(0,0,0,0.2);
 }
 #inputarea input {
 	width:95%;
+	border:none;
 }
+
 .msg {
-	height:36px;
-	overflow:hidden;
+	min-height:24px;
 	font-family:"Lucida Sans",Tahoma,sans-serif;
 	font-size:10px;
 	position:relative;
+	padding-bottom:4px;
 }
+
 .msg .iconbox {
-	position:absolute;
+	float:left;
 	left:2px;
 	top:2px;
 }
@@ -51,17 +82,25 @@ BODY {
 	font-weight:bold;
 }
 .msg .text {
-	width:100%;
-	padding-left:36px;
-	position:absolute;
-	top:0px;
-	left:0px;
-	height:36px;
+	width:auto;
+	min-height:36px;
+	margin-left:36px;
+	margin-right:16px;
 }
+#remoteactivity {
+	display:none;
+	font-family:"Lucida Sans",Tahoma,sans-serif;
+	font-size:10px;
+	font-style:italic;
+}
+
 
 </style>
 <script>
 $(document).ready(function() {
+	
+	$("#inputtext").focus();
+
 	navigator.mozSocial.getWorker().port.onmessage = function(e) {
 		var topic = e.data.topic;
 		var data = e.data.data;
@@ -72,16 +111,31 @@ $(document).ready(function() {
 
 	$('#inputtext').keypress(function(e){
 		if(e.which == 13){
+			var msgText = $("#inputtext").val();
 			navigator.mozSocial.getWorker().port.postMessage(
 				{
 					topic:"sendmessage",
-					msg: $("#inputtext").val(),
+					msg: msgText,
 					to: gFocusedUser
 				}
 			);
+			addSentMessage({to:gFocusedUser, msg:msgText});
 			e.preventDefault();
 			$("#inputtext").val("");
 			return false;
+       	} else {
+
+       		window.setTimeout(function() {
+	       		var msgText = $("#inputtext").val();
+				navigator.mozSocial.getWorker().port.postMessage(
+					{
+						topic:"useractivity",
+						to: gFocusedUser,
+						msg: (msgText.length > 0) ? "active" : "clear"
+					}
+				);
+			}, 0);
+
        	}
      });
 });
@@ -92,33 +146,77 @@ messageHandlers = {
 	},
 	getfriendsresp: function(msg) {
 	},
+	
 	presenceupdate: function(msg) {
-		//updatePresence(msg);
+	
 	},
 	newmessage: function(msg) {
 		handleMessage(msg);
 	},
 	connectionclose: function(msg) {
-		// userIsDisconnected(msg);
 		window.close();
 	},
 	startchat: function(msg) {
 		setChatFocus(msg.to);
+	},
+	useractivity: function(msg) {
+		updateRemoteUserActivity(msg);
 	}
 };
 
 
+var gUsers = [];
 var gMessageLists = {};
 var gFocusedUser;
 
+var theUser;
 function userIsConnected(msg) {
+	theUser = msg;	
+}
 
+function registerUser(toID) {
+	if (gUsers.indexOf(toID) < 0) {
+		gUsers.push(toID);
+		$("#focuslist").append(renderFocusBox(toID));
+	}
 }
 
 function setChatFocus(toID) {
+	registerUser(toID);
 	gFocusedUser = toID;
-	$("#chatfocus").text(toID);
+
+	$(".focus").removeClass("activefocus");
+	$("#focus" + toID).addClass("activefocus");
+	renderMessages();
 }
+
+function addSentMessage(msg) {
+	var list = gMessageLists[msg.to];
+	if (!list) list = gMessageLists[msg.to] = [];
+	
+	msg.fromIcon = theUser.icon;
+	list.push(msg);
+	var msgBox = $("#messages");
+	var newMsg = renderMessage(msg);
+	msgBox.append(newMsg);
+	newMsg.after($("#remoteactivity"));
+
+	msgBox.animate({ scrollTop: msgBox.prop("scrollHeight") }, 500);
+	//msgBox.scrollTop(msgBox.prop("scrollHeight"));
+}
+
+function updateRemoteUserActivity(msg) {
+	// TODO be cool and handle backgrounded users
+	if (msg.from == gFocusedUser) {
+		if (msg.msg == "active") {
+			$("#remoteactivity").show();
+			$("#messages").animate({ scrollTop: $("#messages").prop("scrollHeight") }, 500);
+		} else {
+			$("#remoteactivity").hide();
+		}
+	}
+}
+
 function handleMessage(msg) {
 //	$("#debug").text("Got message: " + JSON.stringify(msg));
 	var list = gMessageLists[msg.from];
@@ -128,31 +226,60 @@ function handleMessage(msg) {
 	list.push(msg);
 	if (gFocusedUser == msg.from) {
 		var newMsg = renderMessage(msg);
-		//newMsg.hide();
 		$("#messages").append(newMsg);
-		//newMsg.show(500);		
+		newMsg.after($("#remoteactivity"));
+		$("#remoteactivity").hide();
+		$("#messages").animate({ scrollTop: $("#messages").prop("scrollHeight") }, 500);
+
 	} else {
 		console.log("Not focused user; ignoring for the moment");
 	}
 }
+
+function renderFocusBox(id) {
+	var div = $("<div class='focus'>");
+	div.attr("id", "focus" + id);
+	var from = $("<div class='from'>");
+	from.text(id);
+	div.append(from);
+	return div;
+}
+
+function renderMessages() {
+	var list = gMessageLists[gFocusedUser];
+	$("#messages").empty();
+	if (list) {
+		var rendered;
+		for each (var m in list) {
+			rendered = renderMessage(m);
+			$("#messages").append(rendered);
+		}
+		if (rendered) rendered.after($("#remoteactivity"));
+	}
+}
+
 function renderMessage(msg) {
 	var div = $("<div class='msg'>");
-
+	
 	var iconbox = $("<div class='iconbox'>");
 	var icon = $("<img class='icon'>");
 	var text = $("<div class='text'>");
 	var from = $("<div class='from'>");
 	var msgtext = $("<div class='msg'>");
 	
+	div.append(iconbox);
 	iconbox.append(icon);
-	div.append(icon);
 	div.append(text);
-
 	text.append(from);
 	text.append(msgtext);
 
 	icon.attr("src", msg.fromIcon);
-	from.text(msg.from);
+	if (msg.from != gFocusedUser) {
+		from.text("You:");
+	} else {
+		from.text(msg.from + ":");
+	}
+
 	msgtext.text(msg.msg);
 
 	// not using date
@@ -161,11 +288,16 @@ function renderMessage(msg) {
 }
 </script>
 <body>
-<div id="messages">
-	<div id="debug"></div>
+
+<div id="focuslist"></div>
+
+<div id="scrollingbox">
+	<div id="messages"></div>
+	<div id="remoteactivity">is typing...</div>
 </div>
+
+
 <div id="inputarea">
-	<div id="chatfocusline">Chatting with <div id="chatfocus"></div></div>
 	<input type="text" id="inputtext">
 </div>
 </body>

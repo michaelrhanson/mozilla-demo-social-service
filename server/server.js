@@ -351,6 +351,18 @@ function createSessionAgent(clientConnection)
 							msg: cmd.msg
 						});
 					}
+				} else if (cmd.cmd == "useractivity") {
+					var toSession = getSession(cmd.to);
+					log("user activity from " + session.id + " to " + cmd.to);
+					if (toSession) {
+						sendToAllConnections(toSession, {
+							cmd:"useractivity",
+							from: session.id,
+							to: cmd.to,
+							msg: cmd.msg
+						})
+					}
+
 				} else {
 					log("Unknown command: " + message.utf8Data);
 				}

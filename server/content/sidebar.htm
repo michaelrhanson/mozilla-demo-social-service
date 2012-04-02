@@ -6,6 +6,8 @@
 BODY {
 	background-image: 
 	height:100%;
+	user-select:none;
+	-moz-user-select:none;
 }
 #header {
 	left:0px;
@@ -82,11 +84,30 @@ BODY {
 #friendlist .presencebox {
 	display:inline-block;
 	position:absolute;
-	right:0px;
+	right:10px;
 	top:11px;
 }
 #friendlist .presence {
 
+}
+#friendlist .menutarget {
+	display:inline-block;
+	position:absolute;
+	right:-3px;
+	top:11px;
+	padding:3px;
+	opacity:0;
+	transition-property:opacity;
+	transition-duration:0.5s;
+	-moz-transition-property:opacity;
+	-moz-transition-duration:0.5s;
+}
+#friendlist:hover .menutarget {
+	opacity:1;
+	transition-property:opacity;	
+	transition-duration:0.5s;
+	-moz-transition-property:opacity;
+	-moz-transition-duration:0.5s;
 }
 .nobodyHere {
 	font-size:10px;
@@ -94,6 +115,29 @@ BODY {
 	top:10px;
 	left:38px;
 	overflow:hidden;	
+}
+.menu {
+	position:absolute;
+	display:none;
+	list-style:none;
+	font-family:"Lucida Grande",Tahoma,sans-serif;
+	font-size:10px;
+	padding:4px;
+	margin-left:0px;
+	
+	border:1px solid #888;
+	border-radius:2px;
+	-moz-box-shadow:2px 2px 1px rgba(0,0,0,0.2);
+	box-shadow:2px 2px 1px rgba(0,0,0,0.2);
+	background-color:white;
+	color:#777;
+	cursor:pointer;
+}
+.menu .menuitem {
+
+}
+.menu .menuitem:hover {
+	background-color:#d0d0f0;
 }
 
 </style>
@@ -111,6 +155,9 @@ function signin() {
 		}
 	})
 }
+$(window).blur(function() {
+	$(".menu").hide();
+});
 
 navigator.mozSocial.getWorker().port.onmessage = function(e) {
 	dump("Got message: " + e.data.topic + " " + e.data.data +"\n");
@@ -166,33 +213,53 @@ function renderFriendList()
 		var videoicon = $("<img class='icon'>");
 		videoicon.attr("src", "/video.png");		
 
+		var menutri = $("<img class=\"menutarget\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAECAYAAABCxiV9AAAAKElEQVQImWPs6en5z4ADMDIwMDBgU1BSUsLICOMgKygpKWFEV4xhAgAmLQ1KVRG9OgAAAABJRU5ErkJggg==\">");
+		
+		var actionMenu = $("<ul class='menu'>");
+		var item1 = $("<li>").text("Request chat");
+		var item2 = $("<li>").text("Request video chat");
+		actionMenu.append(item1);
+		actionMenu.append(item2);
+
 		iconbox.append(icon);
 		div.append(iconbox);
 		icon.attr("src", f.icon);
 		div.append(name);
 		div.append(presencebox);
 		presencebox.append(presence);
-		presencebox.append(videoicon)
+		//presencebox.append(videoicon)
+		iconbox.append(actionMenu);
+		div.append(menutri);
 		name.text(f.id);
 		
 		if (f.presence && PRESENCE_ICONS[f.presence]) {
 			presence.attr("src", PRESENCE_ICONS[f.presence]);
 		} else presencebox.hide();
 
-		icon.click(function() {
-			navigator.mozSocial.openServiceWindow(
-					"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
-					"resizable=yes,scrollbars=yes,width=400,height=300", 
-			 		"MozSocialDemo Chat", function() {
-			 			navigator.mozSocial.getWorker().port.postMessage(
-			 				{topic:"inform", type: "startchat", message: { to:f.id } }
-			 			);
-			 		}
-			 );
-		});
+		menutri.click(function(e) {
+			e.preventDefault();
 
-		videoicon.click(function() {
-			navigator.mozSocial.openServiceWindow(
+			var mpos = menutri.offset();
+			mpos.top +=5;
+			mpos.left = mpos.left -100;
+			//$("#friendmenu").offset({left:0,top:0});
+			$("#friendmenu").css({top: mpos.top, left:mpos.left});
+			$("#friendmenu").show();
+
+			$("#startChatItem").click(function() {
+				navigator.mozSocial.openServiceWindow(
+						"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
+						"resizable=yes,scrollbars=yes,width=400,height=300", 
+				 		"MozSocialDemo Chat", function() {
+				 			navigator.mozSocial.getWorker().port.postMessage(
+				 				{topic:"inform", type: "startchat", message: { to:f.id } }
+				 			);
+				 		}
+				 ).focus();
+				$("#friendmenu").hide();
+			});
+			$("#startVideoChatItem").click(function() {
+				navigator.mozSocial.openServiceWindow(
 					"http://demosocialservice.org:8888/video.htm", "mozsocialdemo-video",
 					"resizable=yes,scrollbars=yes,width=1350,height=700",
 					"MozSocialDemo Video", function() {
@@ -200,8 +267,17 @@ function renderFriendList()
 							{topic:"inform", type:"startvideo", message: { to:f.id } }
 						);
 					}
-			);
+				);
+				$("#friendmenu").hide();
+			});
+
+/*			$(document).click(function() {
+				$("#friendmenu").hide();
+				$(document).unbind("click");
+			});*/
 		});
+
+		
 
 		return div;
 	}
@@ -330,6 +406,11 @@ $(document).ready(function() {
 </div>
 <div id="friendlistbox">
 </div>
+
+<ul id="friendmenu" class="menu">
+	<li class="menuitem" id="startChatItem">Request chat</li>
+	<li class="menuitem" id="startVideoChatItem">Request video chat</li>
+</ul>
 </div>
 
 

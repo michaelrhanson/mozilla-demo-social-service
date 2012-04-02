@@ -123,6 +123,15 @@ var handlers = {
 			}
 		));
 	},
+	useractivity: function(port, data) {
+		gSocket.send(JSON.stringify(
+		{
+			cmd:"useractivity",
+			from: gSavedUserProfile.id,
+			to: data.to,
+			msg: data.msg
+		}));
+	},
 	video: function(port, data) {
 		gSocket.send(JSON.stringify(
 			{
@@ -190,6 +199,9 @@ socketMessageHandlers = {
 	},
 	video: function(msg) {
 		broadcast("video", msg);
+	},
+	useractivity: function(msg) {
+		broadcast("useractivity", msg);
 	}
 }
 
