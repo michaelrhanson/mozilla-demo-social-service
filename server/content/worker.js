@@ -1,10 +1,15 @@
 /* this is the worker */
 
+dump("\n\n\nHELLO WORKER WORLD\n\n\n");
+
 // This keeps a list of all the ports that have connected to us
 _broadcastReceivers = [];
 
 function log(msg) {
-	console.log(new Date().toISOString() + ": [bwmworker] " + msg);
+	dump(new Date().toISOString() + ": [dssworker] " + msg + "\n");
+	try {
+		console.log(new Date().toISOString() + ": [dssworker] " + msg);
+	} catch (e) {}
 }
 
 // Called when the worker connects a message port
@@ -72,12 +77,6 @@ var handlers = {
 	inform: function(port, data) {
 		broadcast(data.type, data.message);
 	},
-	subscribe: function(port, data) {
-		subscribe(data.topic);
-	},
-	publish: function(port, data) {
-		publish(data.topic, data.message);
-	},
 	checkconnection: function(port, data) {
 		if (gSavedUserProfile && gSocket) {
 			port.postMessage({topic:"checkconnectionack", data:gSavedUserProfile});
@@ -91,22 +90,22 @@ var handlers = {
 		var assertion = data.assertion;
 		createSocket(assertion);
 	},
-	getfriends: function(port, data) {
-		// if we have the friend list cached, return that
-		gSocket.send(JSON.stringify( {cmd: "getfriends"}));
+	getusers: function(port, data) {
+		// if we have the user list cached, return that
+		gSocket.send(JSON.stringify( {cmd: "getusers"}));
 	},
 	shownotification: function(port, data) {
 		Notification(data.icon, data.title, data.text).show();
 	},
 	'user-recommend': function(port, data) {
-		log("browsewithme got recommend request for " + data.url);
+		log("demosocial got recommend request for " + data.url);
 	},
 	'user-recommend-prompt': function(port, data) {
 	// XXX - I guess a real impl would want to check if the URL has already
 	// been liked and change this to "unlike" or similar?
 		port.postMessage({topic: 'user-recommend-prompt-response',
 					  data: {
-						message: "Recommend to BrowseWithMe",
+						message: "Recommend to DemoSocialService",
 						img: RECOMMEND_ICON
 					  }
 					 });
@@ -123,7 +122,17 @@ var handlers = {
 				msg: data.msg
 			}
 		));
-	}
+	},
+	video: function(port, data) {
+		gSocket.send(JSON.stringify(
+			{
+				cmd: "video",
+				from: gSavedUserProfile.id,
+				to: data.to,
+				msg: data.msg
+			}
+		));
+	}	
 }
 
 
@@ -135,7 +144,7 @@ var gSavedUserProfile;
 function createSocket(assertion)
 {
 	log("Creating socket");
-	var socket = new WebSocket("ws://browsewithme.org:8888/websocket");
+	var socket = new WebSocket("ws://demosocialservice.org:8888/websocket");
 	socket.onopen = function() {
 		log("Socket open, sending assertion");
 		socket.send( JSON.stringify( {cmd: "connect", assertion:assertion} ));
@@ -165,13 +174,13 @@ socketMessageHandlers = {
 		gSavedUserProfile = msg;
 		broadcast("connack", msg);
 
-		// get a list of my friends:
+		// get a list of users:
 		if (msg.status == "ok") {
-			gSocket.send(JSON.stringify( {cmd: "getfriends"}));
+			gSocket.send(JSON.stringify( {cmd: "getusers"}));
 		}
 	},
-	getfriendsresp: function(msg) {
-		broadcast("getfriendsresp", msg);
+	getusersresp: function(msg) {
+		broadcast("getusersresp", msg);
 	},
 	presenceupdate: function(msg) {
 		broadcast("presenceupdate", msg);
@@ -179,6 +188,9 @@ socketMessageHandlers = {
 	newmessage: function(msg) {
 		broadcast("newmessage", msg);
 	},
+	video: function(msg) {
+		broadcast("video", msg);
+	}
 }
 
 function heartbeat() {

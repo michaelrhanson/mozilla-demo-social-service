@@ -1,10 +1,10 @@
 <html>
 <head>
-	<title>BrowseWithMe</title>
+	<title>DemoSocialService</title>
 </head>
 <style>
 BODY {
-	background-image: -moz-linear-gradient(bottom right, rgb(240,240,240), rgb(255,255,255));
+	background-image: 
 	height:100%;
 }
 #header {
@@ -13,21 +13,18 @@ BODY {
 	position:absolute;
 	height:38px;
 	overflow:hidden;
-
-	/* this is mac-specific: get the right rules in here*/
-	padding-top: -1px; /* don't overlay the bottom border of the tabs toolbar */
-	background-color: -moz-mac-chrome-active;
-	background-image: -moz-linear-gradient(rgba(255,255,255,.43), rgba(255,255,255,0)) !important; /* override lwtheme style */
-	background-origin: border-box !important;
-
-	border-top: 1px solid rgba(255, 255, 255, .43);
+	background-image: -moz-linear-gradient(bottom right, rgb(203,104,49), rgb(216,142,64));
 	border-bottom: 1px solid rgba(0, 0, 0, 0.57);
-	font-family:"Lucida Grande";
+	font-family:"Lucida Grande",Tahoma,sans-serif;
 	width:100%
 }
 #signin {
 	margin-left:6px;
 	margin-top:6px;
+}
+#signin a {
+	float:right;
+	padding-right:6px;
 }
 #useridbox {
 	font-size:10px;
@@ -36,13 +33,21 @@ BODY {
 	position:absolute;
 	height:26px;	
 	width:150px;
-	margin-left:4px;
-	color:#555;
+	margin-left:6px;
+	margin-top:2px;
+	color:black;
 }
 #userid {
 	font-weight:bold;
 }
 #usericonbox {
+	float:right;
+	width:32px;
+	height:32px;
+	padding-top:2px;
+	padding-right:4px;
+}
+#usernotifbox {
 	float:right;
 	width:32px;
 	height:32px;
@@ -83,7 +88,13 @@ BODY {
 #friendlist .presence {
 
 }
-
+.nobodyHere {
+	font-size:10px;
+	font-family:"Lucida Grande",Tahoma,sans-serif;
+	top:10px;
+	left:38px;
+	overflow:hidden;	
+}
 
 </style>
 <link rel="manifest" type="text/json" href="manifest.json"></link>
@@ -152,21 +163,25 @@ function renderFriendList()
 		var name = $("<div class='name'>");
 		var presencebox = $("<div class='presencebox'>");
 		var presence = $("<img class='presence'>");
-		
+
+		var videoicon = $("<img class='icon'>");
+		videoicon.attr("src", "/video.png");		
+
 		iconbox.append(icon);
 		div.append(iconbox);
 		icon.attr("src", f.icon);
 		div.append(name);
 		div.append(presencebox);
 		presencebox.append(presence);
+		presencebox.append(videoicon)
 		name.text(f.id);
 		
 		if (f.presence && PRESENCE_ICONS[f.presence]) {
 			presence.attr("src", PRESENCE_ICONS[f.presence]);
 		} else presencebox.hide();
 
-		div.click(function() {
-			navigator.mozSocial.openServiceWindow("http://browsewithme.org:8888/chat.htm", "mozsocialdemo-chat", 
+		icon.click(function() {
+			navigator.mozSocial.openServiceWindow("http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
 					"resizable=yes,scrollbars=yes,width=400,height=300", 
 			 		"MozSocialDemo Chat", function() {
 			 			navigator.mozSocial.getWorker().port.postMessage(
@@ -174,26 +189,52 @@ function renderFriendList()
 			 			)
 			 		});
 		});
+		videoicon.click(function() {
+			navigator.mozSocial.openServiceWindow(
+			"http://demosocialservice.org:8888/video.htm", "mozsocialdemo-video",
+			"resizable=yes,scrollbars=yes,width=1350,height=700",
+			"MozSocialDemo Video", function() {
+			navigator.mozSocial.getWorker().port.postMessage(
+			{
+					topic:"inform", type:"startvideo", message: { to:f.id } }
+				);
+			}
+			);
+		});
+
+
 		return div;
 	}
 
 	dump("Rendering friend list\n");
 
 	var list = $("<div id='friendlist'>");
+	var anybody = false;
 	for each (var f in gFriendsList) {
-		if (f != theUser.id)
+		if (f.id != theUser.id) {
+			anybody = true;
 			list.append(renderFriend(f));
+		}
 	}
 	$("#friendlistbox").empty();
-	$("#friendlistbox").append(list);
+	if (anybody) {
+		$("#friendlistbox").append(list);
+	} else {
+		$("#friendlistbox").append($("<div class='nobodyHere'>Nobody else is using the demo service right now.</div>"));
+	}
 }
 
 function updatePresence(msg)
 {
-	for each (var f in gFriendsList) {
-		if (f.id == msg.id) {
-			f.presence = msg.presence;
+	for (var f in gFriendsList) {
+		if (gFriendsList[f].id == msg.id) {
+			if (gFriendsList[f].presence == "off") {
+				gFriendsList.splice(f, 1);
+			} else {
+				gFriendsList[f].presence = msg.presence;
+			}
 			renderFriendList();
+			return;
 		}
 	}	
 	gFriendsList.push( {
@@ -201,6 +242,7 @@ function updatePresence(msg)
 		presence:msg.presence,
 		icon:msg.icon
 	});
+	renderFriendList();	
 }
 
 
@@ -247,10 +289,10 @@ messageHandlers = {
 	},
 	checkconnectionack: function(msg) {
 		userIsConnected(msg);
-		navigator.mozSocial.getWorker().port.postMessage({topic:"getfriends"});
+		navigator.mozSocial.getWorker().port.postMessage({topic:"getusers"});
 	},
-	getfriendsresp: function(msg) {
-		setFriendsList(msg.friends);
+	getusersresp: function(msg) {
+		setFriendsList(msg.users);
 	},
 	presenceupdate: function(msg) {
 		updatePresence(msg);
@@ -270,12 +312,15 @@ $(document).ready(function() {
 
 <div id="header">
 <div id="signin">
-	<a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_red.png"></a>
+	<a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_blue.png"></a>
 	<div id="signin_error"></div>
 </div>
 <div id="useridbox" style="display:none">Signed in as <div id="userid"></div></div>
 <div id="usericonbox" style="display:none">
 	<img id="usericon">
+</div>
+<div id="usernotifbox" style="display:none">
+	<img id="usernotif">
 </div>
 </div>
 

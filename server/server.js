@@ -18,14 +18,16 @@ for (var i = 2; i <= 2; i++) {
 	}
 }
 var port = Number(argv[2]);
-const SERVER_DOMAIN = "http://browsewithme.org:" + port;
+const SERVER_DOMAIN = "http://demosocialservice.org:" + port;
+
+const BROWSERID_VERIFIER = "browserid.org";
+const BROWSERID_VERIFIER_PORT = 443;
+const BROWSERID_VERIFIER_PATH = "/verify";
 
 server.configure('development', function(){
 	server.use(express.static(__dirname + '/content'));
 	server.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
 });
-
-
 
 wsServer = new WebSocketServer({
 		httpServer: server,
@@ -69,53 +71,143 @@ wsServer.on('request', function(request) {
 	}
 });
 
+/**************************************
+ * User session tracking
+ *
+ * The gSessionTable contains an entry for each of the active
+ * users, keyed on their ID.  The session entry contains a list
+ * of all the connections for this user.  Each connection record
+ * contains the socket, a device descriptor, and an activity
+ * timestamp.
+ *
+ * The socket is annotated with the user's identifer, to allow
+ * network I/O events to be correlated back to user identities.
+ *
+ * A "device descriptor" is an opaque string that helps the
+ * user name their devices; it is chosen by the client and is
+ * not intended to automatically be unique or stable.
+ *
+ * It is the responsibility of the reapIdleConnections method
+ * to detect which user sessions have become inactive and to
+ * close them out of the table.
+ */
 
 gSessionTable = {};
-gTopicTable = {};
 
-// NOTE This implementation assumes only one socket per user!
-// Fixing that will require some more sophisticated indexing.
-function addSession(id, expires, socket) {
-	var obj = gSessionTable[id];
+/** Add a user session, given a userID, device descriptor, and socket. */
+function addSession(userID, deviceDesc, socket) {
+
+	var obj = gSessionTable[userID];
 	if (!obj) {
-		obj = gSessionTable[id] = {};
+		obj = gSessionTable[userID] = {};
 	}
-	obj.expires = expires;
-	obj.socket = socket;
-	socket.userid = id;
-	log("Update session table: " + id + " at " + socket.remoteAddress);
+
+	var conn = {};
+
+	conn.activity = new Date().getTime();
+	conn.device = deviceDesc;
+	conn.socket = socket;
+	socket.userid = userID;
+	if (!obj.connections) obj.connections = [];
+	obj.connections.push(conn);
+
+	log("Update session table: " + userID + " at " + socket.remoteAddress);
 }
 
-function clearSession(socket) {
-	if (socket.id && gSessionTable[socket.userid]) {
-		log("Update session table: remove " + socket.userid + " at " + socket.remoteAddress);
-		delete gSessionTable[socket.userid];
+/** Given a socket, clear out the session for the socket.  Typically
+ * called in response to a network close or reset. */
+function clearSessionForSocket(socket) {
+
+	var userid = socket.userid;
+	if (userid && gSessionTable[userid]) 
+	{
+		log("Update session table: remove " + userid + " at " + socket.remoteAddress);
+		var session = gSessionTable[userid];
+		if (!session.connections) {
+			log("Error: clearSessionForSocket called on a session that had no connections.  User session tracking error?");
+			return;
+		}
+		for (var i in session.connections) {
+			if (session.connections[i].socket == socket) {
+			    session.connections.splice(i, 1);
+			}
+		}
+		if (session.connections.length == 0) {
+			// no more sessions for this user: take them out of the table
+			delete gSessionTable[userid];
+
+			// and tell the world they have gone offline
+			broadcastPresence(userid, "off");
+		}
+	}
+	else
+	{
+		log("socket closed without a userid: failure during login?");
 	}
 }
 
-function broadcastToAllConnections(msg)
+/** Sends the given message to all the connections for this session */
+function sendToAllConnections(aSession, msg) 
 {
-	for (var s in gSessionTable) {
-		try {
-			gSessionTable[s].socket.send(msg);
+	if (typeof msg == "object") msg = JSON.stringify(msg);
+
+	for (var c in aSession.connections)
+	{
+		try {	
+			aSession.connections[c].socket.sendUTF(msg);
 		} catch (e) {
-			log("Error while broadcasting to " + s.socket.userid);
+			log("Error while sending to connection " + c + " of " + aSession.connections[c].userid + ": " + e);
 		}
 	}
 }
 
+/** Tell all connections that this user has gone offline */
+function broadcastPresence(userid, status)
+{
+	broadcastToAllConnections({
+			cmd:"presenceupdate",
+			id:userid,
+			icon:makeIcon(userid),
+			presence:status
+	}, 
+	{
+		except: userid
+	});
+}
+
+/** Send a message to all active connections */
+function broadcastToAllConnections(msg, options)
+{
+	if (typeof msg == "object") msg = JSON.stringify(msg);
+
+	for (var s in gSessionTable) {
+		if (options && options.except == s) continue;
+		var session = gSessionTable[s];
+		for (var i in session.connections) {
+			try {
+				session.connections[i].socket.send(msg);
+			} catch (e) {
+				log("Error while broadcasting to connection " + i + " of " + s + ": " + e);
+			}
+		}
+	}
+}
+
+/** Given a userID, get the session for it */
 function getSession(id) {
 	return gSessionTable[id];
 }
 
-function getOnlineFriends(id) {
+/** Return an array of records containing all active users */
+function getOnlineUsers() {
 	var ret = [];
-	for (k in gSessionTable) {
+	for (var k in gSessionTable) {
 		ret.push( { id: k, icon: makeIcon(k), presence: "on"} )
 	}
 	return ret;
 }
 
+/** Make an icon for the given userID */
 function makeIcon(id) {
 	if (!id) {
 		return SERVER_DOMAIN + "/generic_person.png";
@@ -126,7 +218,36 @@ function makeIcon(id) {
 	return icon;
 }
 
+function reapIdleConnections()
+{
+	var now = new Date().getTime();// assuming runtime of this is fast enough for just one "now"
 
+	// Two passes - get the idles and then close them
+	var idles = [];
+	for (var u in gSessionTable)
+	{
+		for (var i in u.connections) {
+			if (u.connections[i].activity - now > SESSION_IDLE_EXPIRY_TIME_SEC * 1000) {
+				idles.push([u,i]);
+			}
+		}
+	}
+
+	for (var i in idles) {
+		try {
+			var user = i[0];
+			var conn = i[1];
+
+			clearSessionForSocket(gSessionTable[i].connections[conn]);
+
+		} catch (e) {
+			log("Error while closing idle socket: " + e);
+		}
+	}
+}
+setTimeout(reapIdleConnections, 5000);
+
+/** The core user session handler */
 function createSessionAgent(clientConnection)
 {
 	var session = {};
@@ -137,20 +258,21 @@ function createSessionAgent(clientConnection)
 			if (message.type === 'utf8') {
 				log("Got request: " + message.utf8Data);
 				var cmd = JSON.parse(message.utf8Data);
+				
+				// connect is used to authenticate a user 
 				if (cmd.cmd == "connect") {
+
 					var body = "assertion=" + cmd.assertion + "&audience=" + SERVER_DOMAIN;
 					var options = {
-						host: 'browserid.org', port: 443,
-						method: 'POST', path: '/verify',					
+						host: BROWSERID_VERIFIER, 
+						port: BROWSERID_VERIFIER_PORT,
+						path: BROWSERID_VERIFIER_PATH,					
+						method: 'POST', 
 						headers: { "Content-Length" : body.length, "Content-Type": "application/x-www-form-urlencoded"}
 					};
 
 					var req = https.request(options, function(res) {
-						//log("statusCode: " + res.statusCode);
-						//log("headers: " + res.headers);
-
 						res.on('data', function(d) {
-							// process.stdout.write(d);
 							var result = JSON.parse(d);
 							if (result.status == "okay") {
 								addSession(result.email, result.expires, clientConnection);
@@ -166,14 +288,13 @@ function createSessionAgent(clientConnection)
 										icon:icon
 									}
 								));
-								// and tell everybody that you just came on
-								broadcastToAllConnections(JSON.stringify(
-										{cmd:"presenceupdate",
-										id:result.email,
-										icon:icon,
-										presence:"on"
-										}
-								));
+
+								try {
+									// and tell everybody that you just came on
+									broadcastPresence(session.id, "on");
+								} catch (e) {
+									log("Unable to notify presence of " +session.id);
+								}
 							} else {
 								log("login failure: " + d);
 								clientConnection.sendUTF(JSON.stringify(
@@ -192,37 +313,44 @@ function createSessionAgent(clientConnection)
 						console.error(e);
 					});                
 
-				} else if (cmd.cmd == "getfriends") {
-					var friends = getOnlineFriends(session.id);
+				} else if (cmd.cmd == "getusers") {
+
+					var users = getOnlineUsers();
 					var cmd = {
-							cmd: "getfriendsresp",
-							friends: friends
+						cmd: "getusersresp",
+						users: users
 					};
 					var cmdStr = JSON.stringify(cmd);
-					log("sending friend list: " + cmdStr);
+					log("sending user list: " + cmdStr);
 					clientConnection.sendUTF(cmdStr);
-				} else if (cmd.cmd == "sendmessage") {
 
-					log("Got sendMessage; sessionID is " + session.id);
+				} else if (cmd.cmd == "sendmessage") {
 
 					var toSession = getSession(cmd.to);
 					if (toSession) {
-						toSession.socket.sendUTF(JSON.stringify( {
+						sendToAllConnections(toSession, {
 							cmd: "newmessage",
 							from: session.id,
 							fromIcon: makeIcon(session.id),
 							to: cmd.to,
 							msg: cmd.msg,
 							time: new Date().getTime()
-						}))
+						});
 					} // else queue it up
 					else {
 						log("Message received for " + cmd.to + "; not online, should queue it");
 					}
-				} else if (cmd.cmd == "subscribe") {
-
-				} else if (cmd.cmd == "publish") {
-
+				} else if (cmd.cmd == "video") {
+					var toSession = getSession(cmd.to);
+					log("Request for video received from " + session.id + " to " + cmd.to + "; sending request to connections.");
+					if (toSession) {
+						sendToAllConnections(toSession, {
+							cmd: "video",
+							from: session.id,
+							to: cmd.to,
+							msg: cmd.msg
+						});
+					}
 				} else {
 					log("Unknown command: " + message.utf8Data);
 				}
@@ -235,16 +363,8 @@ function createSessionAgent(clientConnection)
 	clientConnection.on('close', function(reasonCode, description) {
 		try {
 			log('Peer ' + clientConnection.remoteAddress + ' disconnected');
-			clearSession(clientConnection);
-
-			// and tell everybody that you just left
-			broadcastToAllConnections(JSON.stringify(
-				{
-					cmd:"presenceupdate",
-					id:session.id,
-					presence:"off"
-				}
-			));
+			clearSessionForSocket(clientConnection);
+			broadcastPresence(session.id, "off");
 
 		} catch (e) {
 			log("Error in clientConnection.close: " + e);
