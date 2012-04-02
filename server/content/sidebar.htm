@@ -163,7 +163,6 @@ function renderFriendList()
 		var name = $("<div class='name'>");
 		var presencebox = $("<div class='presencebox'>");
 		var presence = $("<img class='presence'>");
-
 		var videoicon = $("<img class='icon'>");
 		videoicon.attr("src", "/video.png");		
 
@@ -181,27 +180,28 @@ function renderFriendList()
 		} else presencebox.hide();
 
 		icon.click(function() {
-			navigator.mozSocial.openServiceWindow("http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
+			navigator.mozSocial.openServiceWindow(
+					"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
 					"resizable=yes,scrollbars=yes,width=400,height=300", 
 			 		"MozSocialDemo Chat", function() {
 			 			navigator.mozSocial.getWorker().port.postMessage(
 			 				{topic:"inform", type: "startchat", message: { to:f.id } }
-			 			)
-			 		});
-		});
-		videoicon.click(function() {
-			navigator.mozSocial.openServiceWindow(
-			"http://demosocialservice.org:8888/video.htm", "mozsocialdemo-video",
-			"resizable=yes,scrollbars=yes,width=1350,height=700",
-			"MozSocialDemo Video", function() {
-			navigator.mozSocial.getWorker().port.postMessage(
-			{
-					topic:"inform", type:"startvideo", message: { to:f.id } }
-				);
-			}
-			);
+			 			);
+			 		}
+			 );
 		});
 
+		videoicon.click(function() {
+			navigator.mozSocial.openServiceWindow(
+					"http://demosocialservice.org:8888/video.htm", "mozsocialdemo-video",
+					"resizable=yes,scrollbars=yes,width=1350,height=700",
+					"MozSocialDemo Video", function() {
+						navigator.mozSocial.getWorker().port.postMessage(
+							{topic:"inform", type:"startvideo", message: { to:f.id } }
+						);
+					}
+			);
+		});
 
 		return div;
 	}
