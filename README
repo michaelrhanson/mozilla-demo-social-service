@@ -10,6 +10,11 @@ For now, you can enable it by adding this to defaultServices.jsm - you'll need t
 	    "URLPrefix": "http://demosocialservice.org:8888"
 	}
 
+Before running the server for the first time, change to the server directory 
+and execute:
+
+    npm install
+
 Run the server with:
 
 	NODE_ENV=development node server.js 8888
