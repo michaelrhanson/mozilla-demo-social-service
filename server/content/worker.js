@@ -27,9 +27,19 @@ onconnect = function(e) {
 				log("onmessage called with no data")
 				return;
 			}
+            // handle the special message that tells us a port is closing.
+            if (msg.topic && msg.topic == "social.port-closing") {
+                var index = _broadcastReceivers.indexOf(port);
+                if (index != -1) {
+                    log("removed receiver " + index);
+                    _broadcastReceivers.splice(index, 1);
+                }
+                log("bwmworker port closed - now " + _broadcastReceivers.length + " connections.");
+                return;
+            }
 
 			if (msg.topic && handlers[msg.topic])
-				handlers[msg.topic](port, msg);
+				handlers[msg.topic](port, msg.data);
 			else
 				log("message topic not handled: "+msg.topic)
 		}
@@ -40,18 +50,6 @@ onconnect = function(e) {
 
 
 var RECOMMEND_ICON="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC7ElEQVQ4jW2TS28bZRSGn7l4xnfHTopNLlYToC1JqMQlIHFRRDdISKWLClFVbIBFfwLsu0GVqi5asegCNiyQ2FCkgqIiVC4toYtCEijNDYckbjKO7x57xjOe72OR0lA1Z3n0nkdH57yvwj4lg0BWWi5OIDFCOjEzRNzUlP20jzRn59bEj1ZHGRrLMZo0iZo6dV+wVbDkq/k0I9mU+n+9CiB7rnA2fhNnL38nTl2eIzBUJswG6XQUI2wQT4RZN8J8fWuWO7/MCK/VFP8BdIDe1iqlC8fJ1Cc5OzxJ/qtPKJy5SFqA4guW6y5rTYVkXcMcmGHlm18Jum2hmTF1F9CwMHqbvJ0o4VevUWYUZ/Emtt+hOvIMDUVF74txx08jDY2B7Dzd+u29DYK7V/Cq4CPBDJPKCA6sfcuXFZ0V5RBus0Op1mWhYPNDT/L+sQDJ0i5AdhuyfP51elIB04BonMhglkvJ01xPvURiaYfSYkFWKk20Ro2D412k61Nenb0P8Fz8WgNCBr4Wpni7xNXWu1x5Ooe0a/R8H2E16d7bJOQ7PDFcQqHBcuH+EaXU6bR0BCqi1yMTl7yZ+4uS8yeDTp2JrMNnkTF+qtq8mLSIe0X8cpHD+fTuG7VkvyIyU6K17YhIQhO5pzQxVrnGh1sf8V7lHJ35BUr36girw6mxP+gPVnBX/yYcfWXviKnpkyx+8TmhtIeeHyDcp3JjcZBLGy9zqxEH9wbvHPF5a3ydTnGbwpxCdmJqz4lB1w1ufnCS8s9XOTSdIpaNqkZUZ7OV5B+rzWOxshzP2+jpBJ7dwkq9wdEzM+pDVq6vF4LvT59ALc6Tfy6qJh+PYkYEIc1D+J5UwgI9KRC5F0gf/xQjM6k+sDJAdChP/uOL2EePsbnQYWe+TGejil+zwfOw3R5z1jTbT557MPxImFrtdnB3aQlr9rrK8u+E3R3UWATlQL9k+Ah9h1/j2eenHgrTvhFtu13Zats4jgsSRkeG9tUB/AvjNVepPwFrSQAAAABJRU5ErkJggg==";
-
-// Called when a messageport is being detached
-ondisconnect = function(e) {
-  var port = e.ports[0];
-  var index = _broadcastReceivers.indexOf(port);
-  if (index != -1) {
-	log("removed receiver " + index);
-	_broadcastReceivers.splice(index, 1);
-  }
-  log("bwmworker ondisconnect - now " + _broadcastReceivers.length + " connections.");
-}
-
 
 function broadcast(topic, payload)
 {
@@ -97,13 +95,13 @@ var handlers = {
 	shownotification: function(port, data) {
 		Notification(data.icon, data.title, data.text).show();
 	},
-	'user-recommend': function(port, data) {
+	'social.user-recommend': function(port, data) {
 		log("demosocial got recommend request for " + data.url);
 	},
-	'user-recommend-prompt': function(port, data) {
+	'social.user-recommend-prompt': function(port, data) {
 	// XXX - I guess a real impl would want to check if the URL has already
 	// been liked and change this to "unlike" or similar?
-		port.postMessage({topic: 'user-recommend-prompt-response',
+		port.postMessage({topic: 'social.user-recommend-prompt-response',
 					  data: {
 						message: "Recommend to DemoSocialService",
 						img: RECOMMEND_ICON
