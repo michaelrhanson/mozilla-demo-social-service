@@ -15,6 +15,7 @@ mkdir(stage_path)
 if exists(xpi_name):
     unlink(xpi_name)
 
+copy(join(social_path, "bootstrap.js"), stage_path)
 copy(join(social_path, "chrome.manifest"), stage_path)
 copytree(join(social_path, "components"), join(stage_path, "components"))
 copytree(join(social_path, "content"), join(stage_path, "content"))
@@ -24,6 +25,5 @@ copy(join(social_path, "install.rdf"), stage_path)
 copytree(join(service_path, "providers"), join(stage_path, "providers"))
 
 chdir(stage_path)
-system("patch -p1 < ../defaultServices.patch")
 system("zip -q -r " + xpi_name + " *")
 print "Created", xpi_name
