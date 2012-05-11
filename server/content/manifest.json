@@ -1,7 +1,11 @@
- {
+{
+  "services": {
+    "social": {
     "name": "Demo Social Service",
     "iconURL": "http://demosocialservice.org:8888/icon.png",
     "workerURL": "http://demosocialservice.org:8888/worker.js",
     "sidebarURL": "http://demosocialservice.org:8888/sidebar.htm",
     "URLPrefix": "http://demosocialservice.org:8888"
+   }
   }
+}
