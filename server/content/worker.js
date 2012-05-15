@@ -1,6 +1,5 @@
 /* this is the worker */
-
-dump("\n\n\nHELLO WORKER WORLD\n\n\n");
+importScripts("workerScript.js");
 
 // This keeps a list of all the ports that have connected to us
 _broadcastReceivers = [];
