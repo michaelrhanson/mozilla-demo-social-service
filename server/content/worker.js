@@ -5,46 +5,46 @@ importScripts("workerScript.js");
 _broadcastReceivers = [];
 
 function log(msg) {
-	dump(new Date().toISOString() + ": [dssworker] " + msg + "\n");
-	try {
-		console.log(new Date().toISOString() + ": [dssworker] " + msg);
-	} catch (e) {}
+  dump(new Date().toISOString() + ": [dssworker] " + msg + "\n");
+  try {
+    console.log(new Date().toISOString() + ": [dssworker] " + msg);
+  } catch (e) {}
 }
 
 // Called when the worker connects a message port
 onconnect = function(e) {
-	try {
-		var port = e.ports[0];
-		_broadcastReceivers.push(port);
-		log("worker onconnect - now " + _broadcastReceivers.length + " connections.");
+  try {
+    var port = e.ports[0];
+    _broadcastReceivers.push(port);
+    log("worker onconnect - now " + _broadcastReceivers.length + " connections.");
 
-		port.onmessage = function(e) {
-			log("worker onmessage: " + JSON.stringify(e.data));
-			
-			var msg = e.data;
-			if (!msg) {
-				log("onmessage called with no data")
-				return;
-			}
-            // handle the special message that tells us a port is closing.
-            if (msg.topic && msg.topic == "social.port-closing") {
-                var index = _broadcastReceivers.indexOf(port);
-                if (index != -1) {
-                    log("removed receiver " + index);
-                    _broadcastReceivers.splice(index, 1);
-                }
-                log("bwmworker port closed - now " + _broadcastReceivers.length + " connections.");
-                return;
-            }
+    port.onmessage = function(e) {
+      log("worker onmessage: " + JSON.stringify(e.data));
 
-			if (msg.topic && handlers[msg.topic])
-				handlers[msg.topic](port, msg.data);
-			else
-				log("message topic not handled: "+msg.topic)
-		}
-	} catch (e) {
-		log(e);
-	}
+      var msg = e.data;
+      if (!msg) {
+        log("onmessage called with no data")
+        return;
+      }
+      // handle the special message that tells us a port is closing.
+      if (msg.topic && msg.topic == "social.port-closing") {
+        var index = _broadcastReceivers.indexOf(port);
+        if (index != -1) {
+          log("removed receiver " + index);
+          _broadcastReceivers.splice(index, 1);
+        }
+        log("bwmworker port closed - now " + _broadcastReceivers.length + " connections.");
+        return;
+      }
+
+      if (msg.topic && handlers[msg.topic])
+        handlers[msg.topic](port, msg.data);
+      else
+        log("message topic not handled: "+msg.topic)
+    }
+  } catch (e) {
+    log(e);
+  }
 }
 
 
@@ -54,91 +54,91 @@ function broadcast(topic, payload)
 {
   // we need to broadcast to all ports connected to this shared worker
   for (var i = 0; i < _broadcastReceivers.length; i++) {
-  	log("about to broadcast to " + _broadcastReceivers[i]);
-	_broadcastReceivers[i].postMessage({topic: topic, data: payload});
+    log("about to broadcast to " + _broadcastReceivers[i]);
+  _broadcastReceivers[i].postMessage({topic: topic, data: payload});
   }
 }
 
 function broadcastStateChange(isConnected, port) {
   var topic = "mqtt.connected";
   if (port) {
-	port.postMessage({topic: topic, data: isConnected});
+  port.postMessage({topic: topic, data: isConnected});
   } else {
-	broadcast(topic, isConnected);
+  broadcast(topic, isConnected);
   }
 }
 
 // Messages from the sidebar and chat windows:
 var handlers = {
-	// notify the other windows of some interesting development:
-	inform: function(port, data) {
-		broadcast(data.type, data.message);
-	},
-	checkconnection: function(port, data) {
-		if (gSavedUserProfile && gSocket) {
-			port.postMessage({topic:"checkconnectionack", data:gSavedUserProfile});
-		}
-	},
-	connect: function(port, data) {
-		var assertion = data.assertion;
-		createSocket(assertion);
-	},
-	reconnect: function(port, data) {
-		var assertion = data.assertion;
-		createSocket(assertion);
-	},
-	getusers: function(port, data) {
-		// if we have the user list cached, return that
-		gSocket.send(JSON.stringify( {cmd: "getusers"}));
-	},
-	shownotification: function(port, data) {
-		Notification(data.icon, data.title, data.text).show();
-	},
-	'social.user-recommend': function(port, data) {
-		log("demosocial got recommend request for " + data.url);
-	},
-	'social.user-recommend-prompt': function(port, data) {
-	// XXX - I guess a real impl would want to check if the URL has already
-	// been liked and change this to "unlike" or similar?
-		port.postMessage({topic: 'social.user-recommend-prompt-response',
-					  data: {
-						message: "Recommend to DemoSocialService",
-						img: RECOMMEND_ICON
-					  }
-					 });
-	},
-	heartbeat: function(port, data) {
-		heartbeat();
-	},
-	sendmessage: function(port, data) {
-		gSocket.send(JSON.stringify( 
-			{
-				cmd: "sendmessage", 
-				from: gSavedUserProfile.id,
-				to: data.to,
-				msg: data.msg
-			}
-		));
-	},
-	useractivity: function(port, data) {
-		gSocket.send(JSON.stringify(
-		{
-			cmd:"useractivity",
-			from: gSavedUserProfile.id,
-			to: data.to,
-			msg: data.msg
-		}));
-	},
-	video: function(port, data) {
-		gSocket.send(JSON.stringify(
-			{
-				cmd: "video",
-				from: gSavedUserProfile.id,
-				to: data.to,
-				msg: data.msg
-			}
-		));
-	}	
+  // notify the other windows of some interesting development:
+  inform: function(port, data) {
+    broadcast(data.type, data.message);
+  },
+  checkconnection: function(port, data) {
+    if (gSavedUserProfile && gSocket) {
+      port.postMessage({topic:"checkconnectionack", data:gSavedUserProfile});
+    }
+  },
+  connect: function(port, data) {
+    var assertion = data.assertion;
+    createSocket(assertion);
+  },
+  reconnect: function(port, data) {
+    var assertion = data.assertion;
+    createSocket(assertion);
+  },
+  getusers: function(port, data) {
+    // if we have the user list cached, return that
+    gSocket.send(JSON.stringify( {cmd: "getusers"}));
+  },
+  shownotification: function(port, data) {
+    Notification(data.icon, data.title, data.text).show();
+  },
+  'social.user-recommend': function(port, data) {
+    log("demosocial got recommend request for " + data.url);
+  },
+  'social.user-recommend-prompt': function(port, data) {
+  // XXX - I guess a real impl would want to check if the URL has already
+  // been liked and change this to "unlike" or similar?
+    port.postMessage({topic: 'social.user-recommend-prompt-response',
+            data: {
+            message: "Recommend to DemoSocialService",
+            img: RECOMMEND_ICON
+            }
+           });
+  },
+  heartbeat: function(port, data) {
+    heartbeat();
+  },
+  sendmessage: function(port, data) {
+    gSocket.send(JSON.stringify(
+      {
+        cmd: "sendmessage",
+        from: gSavedUserProfile.id,
+        to: data.to,
+        msg: data.msg
+      }
+    ));
+  },
+  useractivity: function(port, data) {
+    gSocket.send(JSON.stringify(
+    {
+      cmd:"useractivity",
+      from: gSavedUserProfile.id,
+      to: data.to,
+      msg: data.msg
+    }));
+  },
+  video: function(port, data) {
+    gSocket.send(JSON.stringify(
+      {
+        cmd: "video",
+        from: gSavedUserProfile.id,
+        to: data.to,
+        msg: data.msg
+      }
+    ));
+  }
 }
 
 
@@ -149,60 +149,60 @@ var gSavedUserProfile;
 
 function createSocket(assertion)
 {
-	log("Creating socket");
-	var socket = new WebSocket("ws://demosocialservice.org:8888/websocket");
-	socket.onopen = function() {
-		log("Socket open, sending assertion");
-		socket.send( JSON.stringify( {cmd: "connect", assertion:assertion} ));
-	}
-	socket.onclose = function() {
-		log("Socket close");
-		broadcast("connectionclose");
-		gSocket = null;
-	}
-	socket.onmessage = function(msg) {
-		log("Socket message: " + msg.data)
-		var cmdMsg = JSON.parse(msg.data);
-		if (socketMessageHandlers[cmdMsg.cmd]) {
-			socketMessageHandlers[cmdMsg.cmd](cmdMsg);
-		}
-	}
-	socket.onerror = function(err) {
-		log("Socket error " + err.code);
-		gSocket = null;
-	}	
-	gSocket = socket;
+  log("Creating socket");
+  var socket = new WebSocket("ws://demosocialservice.org:8888/websocket");
+  socket.onopen = function() {
+    log("Socket open, sending assertion");
+    socket.send( JSON.stringify( {cmd: "connect", assertion:assertion} ));
+  }
+  socket.onclose = function() {
+    log("Socket close");
+    broadcast("connectionclose");
+    gSocket = null;
+  }
+  socket.onmessage = function(msg) {
+    log("Socket message: " + msg.data)
+    var cmdMsg = JSON.parse(msg.data);
+    if (socketMessageHandlers[cmdMsg.cmd]) {
+      socketMessageHandlers[cmdMsg.cmd](cmdMsg);
+    }
+  }
+  socket.onerror = function(err) {
+    log("Socket error " + err.code);
+    gSocket = null;
+  }
+  gSocket = socket;
 }
 
 // Messages from the server:
 socketMessageHandlers = {
-	connack: function(msg) {
-		gSavedUserProfile = msg;
-		broadcast("connack", msg);
+  connack: function(msg) {
+    gSavedUserProfile = msg;
+    broadcast("connack", msg);
 
-		// get a list of users:
-		if (msg.status == "ok") {
-			gSocket.send(JSON.stringify( {cmd: "getusers"}));
-		}
-	},
-	getusersresp: function(msg) {
-		broadcast("getusersresp", msg);
-	},
-	presenceupdate: function(msg) {
-		broadcast("presenceupdate", msg);
-	},
-	newmessage: function(msg) {
-		broadcast("newmessage", msg);
-	},
-	video: function(msg) {
-		broadcast("video", msg);
-	},
-	useractivity: function(msg) {
-		broadcast("useractivity", msg);
-	}
+    // get a list of users:
+    if (msg.status == "ok") {
+      gSocket.send(JSON.stringify( {cmd: "getusers"}));
+    }
+  },
+  getusersresp: function(msg) {
+    broadcast("getusersresp", msg);
+  },
+  presenceupdate: function(msg) {
+    broadcast("presenceupdate", msg);
+  },
+  newmessage: function(msg) {
+    broadcast("newmessage", msg);
+  },
+  video: function(msg) {
+    broadcast("video", msg);
+  },
+  useractivity: function(msg) {
+    broadcast("useractivity", msg);
+  }
 }
 
 function heartbeat() {
-	log("heartbeat - socket is " + gSocket);
-	if (gSocket) gSocket.send(JSON.stringify( {cmd:"heartbeat"} ));
+  log("heartbeat - socket is " + gSocket);
+  if (gSocket) gSocket.send(JSON.stringify( {cmd:"heartbeat"} ));
 }
