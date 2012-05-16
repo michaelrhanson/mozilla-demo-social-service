@@ -38,7 +38,7 @@ onconnect = function(e) {
       }
 
       if (msg.topic && handlers[msg.topic])
-        handlers[msg.topic](port, msg.data);
+        handlers[msg.topic](port, msg);
       else
         log("message topic not handled: "+msg.topic)
     }
