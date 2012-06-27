@@ -18,8 +18,8 @@ function signin() {
 }
 
 navigator.mozSocial.getWorker().port.onmessage = function(e) {
-	let topic = e.data.topic;
-	let data = e.data.data;
+	var topic = e.data.topic;
+	var data = e.data.data;
 	if (messageHandlers[topic])
 		messageHandlers[topic](data);
 };
