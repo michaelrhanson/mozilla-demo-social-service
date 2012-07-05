@@ -4,7 +4,7 @@
 </head>
 <style>
 BODY {
-	background-image: 
+	background-image:
 	height:100%;
 	user-select:none;
 	-moz-user-select:none;
@@ -33,7 +33,7 @@ BODY {
 	left:0px;
 	top:4px;
 	position:absolute;
-	height:26px;	
+	height:26px;
 	width:150px;
 	margin-left:6px;
 	margin-top:2px;
@@ -104,7 +104,7 @@ BODY {
 }
 #friendlist:hover .menutarget {
 	opacity:1;
-	transition-property:opacity;	
+	transition-property:opacity;
 	transition-duration:0.5s;
 	-moz-transition-property:opacity;
 	-moz-transition-duration:0.5s;
@@ -114,7 +114,7 @@ BODY {
 	font-family:"Lucida Grande",Tahoma,sans-serif;
 	top:10px;
 	left:38px;
-	overflow:hidden;	
+	overflow:hidden;
 }
 .menu {
 	position:absolute;
@@ -124,7 +124,7 @@ BODY {
 	font-size:10px;
 	padding:4px;
 	margin-left:0px;
-	
+
 	border:1px solid #888;
 	border-radius:2px;
 	-moz-box-shadow:2px 2px 1px rgba(0,0,0,0.2);
@@ -159,24 +159,16 @@ $(window).blur(function() {
 	$(".menu").hide();
 });
 
-navigator.mozSocial.getWorker().port.onmessage = function(e) {
-	dump("Got message: " + e.data.topic + " " + e.data.data +"\n");
-	var topic = e.data.topic;
-	var data = e.data.data;
-	if (messageHandlers[topic])
-		messageHandlers[topic](data);
-};
-
 var theUser;
 function userIsConnected(msg)
 {
 	theUser = msg;
-	$("#userid").text(msg.id);	
+	$("#userid").text(msg.id);
 	$("#usericon").attr("src", msg.icon);
 	$("#useridbox").show();
 	$("#usericonbox").show();
 	$("#signin").hide();
-	$("#content").show();	
+	$("#content").show();
 }
 
 function userIsDisconnected(msg)
@@ -187,7 +179,7 @@ function userIsDisconnected(msg)
 	$("#useridbox").hide();
 	$("#usericonbox").hide();
 	$("#signin").show();
-	$("#content").hide();	
+	$("#content").hide();
 }
 
 var gFriendsList = [];
@@ -211,10 +203,10 @@ function renderFriendList()
 		var presencebox = $("<div class='presencebox'>");
 		var presence = $("<img class='presence'>");
 		var videoicon = $("<img class='icon'>");
-		videoicon.attr("src", "/video.png");		
+		videoicon.attr("src", "/video.png");
 
 		var menutri = $("<img class=\"menutarget\" src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAECAYAAABCxiV9AAAAKElEQVQImWPs6en5z4ADMDIwMDBgU1BSUsLICOMgKygpKWFEV4xhAgAmLQ1KVRG9OgAAAABJRU5ErkJggg==\">");
-		
+
 		var actionMenu = $("<ul class='menu'>");
 		var item1 = $("<li>").text("Request chat");
 		var item2 = $("<li>").text("Request video chat");
@@ -231,7 +223,7 @@ function renderFriendList()
 		iconbox.append(actionMenu);
 		div.append(menutri);
 		name.text(f.id);
-		
+
 		if (f.presence && PRESENCE_ICONS[f.presence]) {
 			presence.attr("src", PRESENCE_ICONS[f.presence]);
 		} else presencebox.hide();
@@ -248,8 +240,8 @@ function renderFriendList()
 
 			$("#startChatItem").click(function() {
 				navigator.mozSocial.openServiceWindow(
-						"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat", 
-						"resizable=yes,scrollbars=yes,width=400,height=300", 
+						"http://demosocialservice.org:8888/chat.htm", "mozsocialdemo-chat",
+						"resizable=yes,scrollbars=yes,width=400,height=300",
 				 		"MozSocialDemo Chat", function() {
 				 			navigator.mozSocial.getWorker().port.postMessage(
 				 				{topic:"inform", type: "startchat", message: { to:f.id } }
@@ -277,7 +269,7 @@ function renderFriendList()
 			});*/
 		});
 
-		
+
 
 		return div;
 	}
@@ -312,20 +304,20 @@ function updatePresence(msg)
 			renderFriendList();
 			return;
 		}
-	}	
+	}
 	gFriendsList.push( {
 		id:msg.id,
 		presence:msg.presence,
 		icon:msg.icon
 	});
-	renderFriendList();	
+	renderFriendList();
 }
 
 
 // XXX update the messages array in checkconnection
 var gMessages = [];
 
-function renderMessage(msg) 
+function renderMessage(msg)
 {
 	var div = $("<div class='message'>");
 	var iconbox = $("<div class='iconbox'>");
@@ -333,7 +325,7 @@ function renderMessage(msg)
 
 	var frombox = $("<div class='from'>");
 	var textbox = $("<div class='text'>");
-	
+
 	iconbox.append(icon);
 	div.append(iconbox);
 	icon.attr("src", msg.icon);
@@ -381,8 +373,46 @@ messageHandlers = {
 	}
 };
 $(document).ready(function() {
-	navigator.mozSocial.getWorker().port.postMessage({topic:"checkconnection"});
+  navigator.mozSocial.getWorker().port.onmessage = function(e) {
+      dump("Got message: " + e.data.topic + " " + e.data.data +"\n");
+      var topic = e.data.topic;
+      var data = e.data.data;
+      if (messageHandlers[topic])
+          messageHandlers[topic](data);
+  };
+
+  navigator.mozSocial.getWorker().port.postMessage({topic:"checkconnection"});
 });
+
+var chatWin;
+function openSvcWindow() {
+
+  dump("do we have chatWin? "+chatWin+"\n");
+  if (chatWin && !chatWin.closed) {
+    dump("just focus our window\n");
+    chatWin.focus();
+    return;
+  }
+  //window.open("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300,dialog=yes");
+  chatWin = navigator.mozSocial.openServiceWindow("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300");
+  chatWin.focus();
+  dump("our window is "+chatWin+"\n");
+  dump("our window is closed? "+chatWin.closed+"\n");
+  try {
+    chatWin.addEventListener("load", function() {
+      dump("our window is LOADING!\n");
+      chatWin.addEventListener("unload", function() {
+        dump("our window is unloading!\n");
+      }, true);
+      chatWin.document.title = "ThisIsMyTest";
+    }, true);
+  } catch(e) {
+    dump(e+"\n");
+  }
+}
+function closeSvcWindow() {
+  chatWin.close();
+}
 </script>
 <body>
 
@@ -391,6 +421,8 @@ $(document).ready(function() {
 	<a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_blue.png"></a>
 	<div id="signin_error"></div>
 </div>
+<button onclick="openSvcWindow()">TestMe</button>
+<button onclick="closeSvcWindow()">CloseIt</button>
 <div id="useridbox" style="display:none">Signed in as <div id="userid"></div></div>
 <div id="usericonbox" style="display:none">
 	<img id="usericon">

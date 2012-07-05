@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Test Service Window</title>
+    <script>
+      function onLoad() {
+        var worker = navigator.mozSocial.getWorker();
+      if (worker) {
+        dump("worker is "+worker+"\n");
+        document.body.style.background = "green";
+      } else {
+        document.body.style.background = "red";
+      }
+      }
+
+
+window.setTimeout(function () {
+  window.location = "http://www.google.com";
+}, 5000)
+    </script>
+</head>
+
+<body onload="onLoad()" style="background: white">
+
+
+
+</body>
+</html>
