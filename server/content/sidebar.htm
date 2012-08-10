@@ -13,7 +13,7 @@ BODY {
 	left:0px;
 	top:0px;
 	position:absolute;
-	height:38px;
+	/*height:38px;*/
 	overflow:hidden;
 	background-image: -moz-linear-gradient(bottom right, rgb(203,104,49), rgb(216,142,64));
 	border-bottom: 1px solid rgba(0, 0, 0, 0.57);
@@ -387,17 +387,18 @@ $(document).ready(function() {
 var chatWin;
 function openSvcWindow() {
 
-  dump("do we have chatWin? "+chatWin+"\n");
-  if (chatWin && !chatWin.closed) {
-    dump("just focus our window\n");
-    chatWin.focus();
-    return;
-  }
+  //dump("do we have chatWin? "+chatWin+"\n");
+  //if (chatWin && !chatWin.closed) {
+  //  dump("just focus our window\n");
+  //  chatWin.focus();
+  //  return;
+  //}
   //window.open("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300,dialog=yes");
   chatWin = navigator.mozSocial.openServiceWindow("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300");
   chatWin.focus();
   dump("our window is "+chatWin+"\n");
   dump("our window is closed? "+chatWin.closed+"\n");
+  return;
   try {
     chatWin.addEventListener("load", function() {
       dump("our window is LOADING!\n");
@@ -413,23 +414,49 @@ function openSvcWindow() {
 function closeSvcWindow() {
   chatWin.close();
 }
+
+
+function openPanel(event) {
+
+  dump("offset? "+event.clientY+"\n");
+  navigator.mozSocial.openPanel("/serviceWindow.html", event.clientY, function(win) {
+	dump("window is opened "+win+"\n");
+  });
+}
+
+
+function openChat(event) {
+
+  navigator.mozSocial.openChatWindow("/serviceWindow.html", function(win) {
+	dump("chat window is opened "+win+"\n");
+  });
+}
+
+function changeLoc() {
+  window.location = "http://www.mozilla.org";
+}
 </script>
 <body>
 
 <div id="header">
-<div id="signin">
-	<a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_blue.png"></a>
-	<div id="signin_error"></div>
-</div>
-<button onclick="openSvcWindow()">TestMe</button>
-<button onclick="closeSvcWindow()">CloseIt</button>
-<div id="useridbox" style="display:none">Signed in as <div id="userid"></div></div>
-<div id="usericonbox" style="display:none">
-	<img id="usericon">
-</div>
-<div id="usernotifbox" style="display:none">
-	<img id="usernotif">
-</div>
+  <div id="signin">
+    <a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_blue.png"></a>
+    <div id="signin_error"></div>
+  </div>
+  <button onclick="openChat(event)">TestChat</button>
+  <button onclick="openPanel(event)">TestPanel</button>
+  <button onclick="openSvcWindow()">TestMe</button>
+  <button onclick="closeSvcWindow()">CloseIt</button>
+  <a href="http://www.mozilla.org" target="_blank">non-same-origin-link with target</a>
+  <a href="http://www.mozilla.org">non-same-origin-link</a>
+  <button onclick="changeLoc()">non-same-origin-location</button>
+  <div id="useridbox" style="display:none">Signed in as <div id="userid"></div></div>
+  <div id="usericonbox" style="display:none">
+    <img id="usericon">
+  </div>
+  <div id="usernotifbox" style="display:none">
+    <img id="usernotif">
+  </div>
 </div>
 
 <div id="content" style="display:none">
