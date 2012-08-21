@@ -2,6 +2,7 @@
 
 <html>
 <head>
+    <link rel="icon" href="http://user:xyz@demosocialservice.org:8888/icon.png"/>
     <title>Test Service Window</title>
     <script>
       function onLoad() {
@@ -14,7 +15,12 @@
       }
       }
 
-
+      window.addEventListener("socialFrameShow", function(e) {
+        dump("test window has been shown, visibility is "+document.visibilityState+" or "+navigator.mozSocial.isVisible+"\n");
+      }, false);
+      window.addEventListener("socialFrameHide", function(e) {
+        dump("test window has been hidden, visibility is "+document.visibilityState+" or "+navigator.mozSocial.isVisible+"\n");
+      }, false);
 //window.setTimeout(function () {
 //  window.location = "http://www.google.com";
 //}, 5000)
@@ -22,8 +28,9 @@
 </head>
 
 <body onload="onLoad()" style="background: white">
-
+<div>
 <input />
-
+<button onclick="close()">close it</button>
+</div>
 </body>
 </html>

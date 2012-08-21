@@ -3,6 +3,10 @@
 	<title>DemoSocialService</title>
 </head>
 <style>
+* {
+    padding: 0;
+    margin: 0;
+}
 BODY {
 	background-image:
 	height:100%;
@@ -12,13 +16,16 @@ BODY {
 #header {
 	left:0px;
 	top:0px;
-	position:absolute;
+	/*position:absolute;*/
 	/*height:38px;*/
 	overflow:hidden;
 	background-image: -moz-linear-gradient(bottom right, rgb(203,104,49), rgb(216,142,64));
 	border-bottom: 1px solid rgba(0, 0, 0, 0.57);
 	font-family:"Lucida Grande",Tahoma,sans-serif;
 	width:100%
+}
+#testbuttons {
+  margin: 4px;
 }
 #signin {
 	margin-left:6px;
@@ -394,22 +401,25 @@ function openSvcWindow() {
   //  return;
   //}
   //window.open("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300,dialog=yes");
-  chatWin = navigator.mozSocial.openServiceWindow("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300");
-  chatWin.focus();
-  dump("our window is "+chatWin+"\n");
-  dump("our window is closed? "+chatWin.closed+"\n");
-  return;
-  try {
-    chatWin.addEventListener("load", function() {
-      dump("our window is LOADING!\n");
-      chatWin.addEventListener("unload", function() {
-        dump("our window is unloading!\n");
+  navigator.mozSocial.openServiceWindow("/serviceWindow.html", "myChat", "resizable=yes,scrollbars=yes,width=300,height=300", function(win) {
+	dump("window is opened "+win+"\n");
+    chatWin = win;
+    chatWin.focus();
+    dump("our window is "+chatWin+"\n");
+    dump("our window is closed? "+chatWin.closed+"\n");
+    try {
+      chatWin.addEventListener("load", function() {
+        dump("our window is LOADING!\n");
+        chatWin.addEventListener("unload", function() {
+          dump("our window is unloading!\n");
+        }, true);
+        chatWin.document.title = "ThisIsMyTest";
       }, true);
-      chatWin.document.title = "ThisIsMyTest";
-    }, true);
-  } catch(e) {
-    dump(e+"\n");
-  }
+    } catch(e) {
+      dump(e+"\n");
+    }
+
+  });
 }
 function closeSvcWindow() {
   chatWin.close();
@@ -429,27 +439,68 @@ function openChat(event) {
 
   navigator.mozSocial.openChatWindow("/serviceWindow.html", function(win) {
 	dump("chat window is opened "+win+"\n");
+    chatWin = win;
   });
 }
 
 function changeLoc() {
   window.location = "http://www.mozilla.org";
 }
+
+function notify(type) {
+  var port = navigator.mozSocial.getWorker().port;
+  switch(type) {
+    case "link":
+      data = {
+        id: "foo",
+        type: null,
+        icon: "/icon.png",
+        body: "This is a cool link",
+        action: "link",
+        actionArgs: {
+          toURL: "/"
+        }
+      }
+      port.postMessage({topic:"social.notification-create", data: data});
+      break;
+    case "chat":
+      data = {
+        id: "chatfoo",
+        type: null,
+        icon: "/icon.png",
+        body: "Chat with Me!",
+        action: "openChatWindow",
+        actionArgs: {
+          toURL: "/serviceWindow.html"
+        }
+      }
+      port.postMessage({topic:"social.notification-create", data: data});
+      break;
+    case "svc":
+      data = {
+        id: "svcfoo",
+        type: null,
+        icon: "/icon.png",
+        body: "A new Window!",
+        action: "openServiceWindow",
+        actionArgs: {
+          name: "test-chat",
+          toURL: "/serviceWindow.html",
+          options: ""
+        }
+      }
+      port.postMessage({topic:"social.notification-create", data: data});
+      break;
+  }
+}
 </script>
 <body>
 
 <div id="header">
   <div id="signin">
-    <a href="javascript:signin()"><img src="https://browserid.org/i/sign_in_blue.png"></a>
+    <img src="https://browserid.org/i/sign_in_blue.png" onclick="signin()"/>
     <div id="signin_error"></div>
   </div>
-  <button onclick="openChat(event)">TestChat</button>
-  <button onclick="openPanel(event)">TestPanel</button>
-  <button onclick="openSvcWindow()">TestMe</button>
-  <button onclick="closeSvcWindow()">CloseIt</button>
-  <a href="http://www.mozilla.org" target="_blank">non-same-origin-link with target</a>
-  <a href="http://www.mozilla.org">non-same-origin-link</a>
-  <button onclick="changeLoc()">non-same-origin-location</button>
   <div id="useridbox" style="display:none">Signed in as <div id="userid"></div></div>
   <div id="usericonbox" style="display:none">
     <img id="usericon">
@@ -457,6 +508,20 @@ function changeLoc() {
   <div id="usernotifbox" style="display:none">
     <img id="usernotif">
   </div>
+</div>
+
+<div id="testbuttons">
+  <button onclick="openChat(event)">TestChat</button>
+  <button onclick="openPanel(event)">TestPanel</button>
+  <button onclick="openSvcWindow()">TestMe</button>
+  <button onclick="chatWin.focus()">focus</button>
+  <button onclick="closeSvcWindow()">CloseIt</button>
+  <button onclick="notify('link')">Notify Link</button>
+  <button onclick="notify('chat')">Notify Chat</button>
+  <button onclick="notify('svc')">Notify SvcWindow</button>
+  <a href="http://www.mozilla.org" target="_blank">non-same-origin-link with target</a>
+  <a href="http://www.mozilla.org">non-same-origin-link</a>
+  <button onclick="changeLoc()">non-same-origin-location</button>
 </div>
 
 <div id="content" style="display:none">

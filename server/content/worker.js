@@ -2,6 +2,7 @@
 importScripts("workerScript.js");
 
 // This keeps a list of all the ports that have connected to us
+var apiPort;
 _broadcastReceivers = [];
 
 function log(msg) {
@@ -39,9 +40,18 @@ onconnect = function(e) {
 
       if (msg.topic && handlers[msg.topic])
         handlers[msg.topic](port, msg);
-      else
-        log("message topic not handled: "+msg.topic)
+      else {
+        log("message topic not handled: "+msg.topic+" "+JSON.stringify(msg));
+        // forward to the api
+        try {
+          apiPort.postMessage(msg);
+        } catch(e) {
+          log(e+"\n");
+        }
+      }
     }
+
+
   } catch (e) {
     log(e);
   }
@@ -70,6 +80,10 @@ function broadcastStateChange(isConnected, port) {
 
 // Messages from the sidebar and chat windows:
 var handlers = {
+  'social.initialize': function(port, data) {
+    log("social.initialize called, capturing apiPort");
+    apiPort = port;
+  },
   // notify the other windows of some interesting development:
   inform: function(port, data) {
     broadcast(data.type, data.message);
@@ -179,6 +193,22 @@ socketMessageHandlers = {
   connack: function(msg) {
     gSavedUserProfile = msg;
     broadcast("connack", msg);
+
+    broadcast('social.user-profile',
+            {
+              iconURL: msg.presence,
+              portrait: msg.icon,
+              userName: msg.id,
+              dispayName: msg.id,
+              profileURL: "/testuser"
+            });
+    broadcast('social.ambient-notification',
+            {
+              name: "test",
+              iconURL: RECOMMEND_ICON,
+              counter: "10",
+              contentPanel: "http://demosocialservice.org:8888/serviceWindow.html"
+            });
 
     // get a list of users:
     if (msg.status == "ok") {
