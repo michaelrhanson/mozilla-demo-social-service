@@ -6,7 +6,7 @@ var http = require('http');
 var https = require('https');
 var argv = process.argv;
 var express = require('express')
-var server = express.createServer();
+var server = express();
 var crypto = require('crypto');
 var querystring = require('querystring');
 
